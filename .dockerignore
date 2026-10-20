@@ -1,0 +1,7 @@
+.git
+.env
+reports
+coverage
+node_modules
+test
+jenkins
