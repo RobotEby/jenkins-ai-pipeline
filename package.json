@@ -1,0 +1,22 @@
+{
+  "name": "jenkins-ai-pipeline",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js",
+    "test:ci": "node scripts/test-ci.js",
+    "model:prepare": "node scripts/prepare-model.js",
+    "review": "node scripts/review.js",
+    "notify": "node scripts/notify.js",
+    "deploy": "node scripts/deploy.js",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10"
+  }
+}
