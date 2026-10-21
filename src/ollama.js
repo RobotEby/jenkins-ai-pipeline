@@ -1,4 +1,5 @@
-export const DEFAULT_MODEL = 'qwen2.5-coder:1.5b';
+export const OLLAMA_URL = process.env.OLLAMA_URL || 'http://ollama:11434';
+export const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5-coder:1.5b';
 
 export class ModelError extends Error {
   constructor(message, status) {
@@ -9,8 +10,8 @@ export class ModelError extends Error {
 
 export async function chat({
   messages,
-  baseUrl = process.env.OLLAMA_URL || 'http://ollama:11434',
-  model = process.env.OLLAMA_MODEL || DEFAULT_MODEL,
+  baseUrl = OLLAMA_URL,
+  model = OLLAMA_MODEL,
   timeoutMs = 120_000,
   format,
   maxTokens = 256,
@@ -30,7 +31,13 @@ export async function chat({
         keep_alive: '5m',
       }),
     });
-    if (!response.ok) throw new ModelError('Modelo indisponível.', 503);
+    if (!response.ok) {
+      const message =
+        response.status === 404
+          ? 'Modelo não encontrado.'
+          : 'Modelo indisponível.';
+      throw new ModelError(message, 503);
+    }
     let result;
     try {
       result = await response.json();
