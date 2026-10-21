@@ -14,6 +14,7 @@ import {
   collectReviewInput,
   relevantFile,
   review,
+  reviewMarkdown,
   validateReview,
 } from '../scripts/review.js';
 import {serve, body, reply} from './helpers.js';
@@ -94,22 +95,43 @@ test('entrada é limitada e tokens conhecidos são removidos', t => {
   assert.doesNotMatch(input.text, /ghp_/);
 });
 
-test('validação rejeita formatos errados e arquivos inventados', () => {
-  for (const value of [
-    null,
-    {},
-    {summary: '', findings: []},
-    {
-      summary: 'Resumo',
-      findings: [{file: 'invented.js', severity: 'alta', suggestion: 'fix'}],
-    },
-    {
-      summary: 'Resumo',
-      findings: [{file: 'app.js', severity: 'unknown', suggestion: 'fix'}],
-    },
-  ]) {
+test('arquivo sem espaço para código não é listado como revisado', t => {
+  const r = repo(t);
+  // Section of a.js = 15 header chars + 11,980 code chars, leaving 5 chars for b.js.
+  r.write('src/a.js', 'x'.repeat(11_980));
+  r.write('src/b.js', 'const b = 1;');
+  r.commit();
+  const input = collectReviewInput({cwd: r.cwd, baseCommit: ''});
+  assert.deepEqual(input.files, ['src/a.js']);
+  assert.equal(input.partial, true);
+});
+
+test('validação rejeita formatos errados e descarta sugestões inválidas', () => {
+  for (const value of [null, {}, {summary: '', findings: []}]) {
     assert.throws(() => validateReview(value, ['app.js']));
   }
+  const valid = {
+    file: 'app.js',
+    severity: 'media',
+    suggestion: 'x'.repeat(500),
+  };
+  assert.deepEqual(
+    validateReview(
+      {
+        summary: 'y'.repeat(400),
+        findings: [
+          {file: 'invented.js', severity: 'alta', suggestion: 'fix'},
+          {file: 'app.js', severity: 'unknown', suggestion: 'fix'},
+          valid,
+        ],
+      },
+      ['app.js'],
+    ),
+    {
+      summary: 'y'.repeat(300),
+      findings: [{...valid, suggestion: 'x'.repeat(300)}],
+    },
+  );
 });
 
 test('revisão usa saída estruturada e trata resposta inválida como indisponível', async t => {
@@ -136,5 +158,27 @@ test('revisão usa saída estruturada e trata resposta inválida como indisponí
     (await review({cwd: r.cwd, baseCommit: '', baseUrl: 'http://127.0.0.1:1'}))
       .status,
     'unavailable',
+  );
+});
+
+test('relatório Markdown informa o limite real da entrada truncada', () => {
+  const markdown = reviewMarkdown({
+    status: 'completed',
+    partial: true,
+    summary: 'Resumo',
+    findings: [],
+  });
+  assert.match(markdown, /limite de 12\.000 caracteres/);
+});
+
+test('validação remove sugestões repetidas', () => {
+  const finding = {file: 'app.js', severity: 'media', suggestion: 'Trate X.'};
+  const other = {...finding, suggestion: 'Trate Y.'};
+  assert.deepEqual(
+    validateReview(
+      {summary: 'Resumo', findings: [finding, finding, other, finding]},
+      ['app.js'],
+    ).findings,
+    [finding, other],
   );
 });
