@@ -1,15 +1,17 @@
 import {execFileSync} from 'node:child_process';
 import {writeFile} from 'node:fs/promises';
-import {chat, DEFAULT_MODEL} from '../src/ollama.js';
+import {chat, OLLAMA_MODEL} from '../src/ollama.js';
 import {writeReport} from './reports.js';
 
 const INPUT_LIMIT = 12_000;
+const TEXT_LIMIT = 300;
+const SEVERITIES = ['baixa', 'media', 'alta'];
 const schema = {
   type: 'object',
   additionalProperties: false,
   required: ['summary', 'findings'],
   properties: {
-    summary: {type: 'string', maxLength: 1000},
+    summary: {type: 'string', maxLength: TEXT_LIMIT},
     findings: {
       type: 'array',
       maxItems: 5,
@@ -19,8 +21,8 @@ const schema = {
         required: ['file', 'severity', 'suggestion'],
         properties: {
           file: {type: 'string'},
-          severity: {type: 'string', enum: ['baixa', 'media', 'alta']},
-          suggestion: {type: 'string', maxLength: 1000},
+          severity: {type: 'string', enum: SEVERITIES},
+          suggestion: {type: 'string', maxLength: TEXT_LIMIT},
         },
       },
     },
@@ -80,8 +82,8 @@ export function collectReviewInput({
     try {
       git('merge-base', '--is-ancestor', baseCommit, 'HEAD');
       base = baseCommit;
-    } catch {
-      /* A rewritten or incomplete history requires a review of the current snapshot. */
+    } catch (error) {
+      console.error(`Erro ao verificar o commit base. ${error.message}`);
     }
   }
   const names = base
@@ -120,6 +122,10 @@ export function collectReviewInput({
       partial = true;
       break;
     }
+    if (remaining <= file.length + 6) {
+      partial = true;
+      break;
+    }
     files.push(file);
     text += section.slice(0, remaining);
     if (section.length > remaining) {
@@ -141,38 +147,36 @@ export function validateReview(value, files) {
     !value ||
     typeof value.summary !== 'string' ||
     !value.summary.trim() ||
-    value.summary.length > 1000 ||
-    !Array.isArray(value.findings) ||
-    value.findings.length > 5
+    !Array.isArray(value.findings)
   )
     throw new Error('Revisão inválida.');
+  const findings = [];
+  const seen = new Set();
   for (const finding of value.findings) {
     if (
       !finding ||
       !files.includes(finding.file) ||
-      !['baixa', 'media', 'alta'].includes(finding.severity) ||
+      !SEVERITIES.includes(finding.severity) ||
       typeof finding.suggestion !== 'string' ||
-      !finding.suggestion.trim() ||
-      finding.suggestion.length > 1000
-    ) {
-      throw new Error('Sugestão inválida.');
-    }
+      !finding.suggestion.trim()
+    )
+      continue;
+    const {file, severity} = finding;
+    const suggestion = finding.suggestion.slice(0, TEXT_LIMIT);
+    const key = `${file}\n${suggestion}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    findings.push({file, severity, suggestion});
+    if (findings.length === 5) break;
   }
-  return {
-    summary: value.summary,
-    findings: value.findings.map(({file, severity, suggestion}) => ({
-      file,
-      severity,
-      suggestion,
-    })),
-  };
+  return {summary: value.summary.slice(0, TEXT_LIMIT), findings};
 }
 
 export async function review({
   cwd,
   baseCommit,
   baseUrl,
-  model = process.env.OLLAMA_MODEL || DEFAULT_MODEL,
+  model = OLLAMA_MODEL,
   timeoutMs = 300_000,
 } = {}) {
   const input = collectReviewInput({cwd, baseCommit});
@@ -231,7 +235,7 @@ export function reviewMarkdown(report) {
     '',
     `Estado: ${report.status}. Modelo: ${report.model || 'não informado'}.`,
     report.partial
-      ? 'Análise parcial: o limite de 12 mil caracteres foi atingido.'
+      ? `Análise parcial: o limite de ${INPUT_LIMIT.toLocaleString('pt-BR')} caracteres foi atingido.`
       : '',
     '',
     report.summary,
