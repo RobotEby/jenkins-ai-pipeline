@@ -1,5 +1,5 @@
 import {execFileSync} from 'node:child_process';
-import {DEFAULT_MODEL} from '../src/ollama.js';
+import {OLLAMA_MODEL, OLLAMA_URL} from '../src/ollama.js';
 import {writeReport} from './reports.js';
 
 function docker(args, env = {}) {
@@ -17,8 +17,8 @@ export async function deploy({
   commit = process.env.GIT_COMMIT,
   buildNumber = process.env.BUILD_NUMBER || 'manual',
   project = process.env.COMPOSE_PROJECT_NAME || 'jenkins-ai-pipeline',
-  baseUrl = process.env.OLLAMA_URL || 'http://ollama:11434',
-  model = process.env.OLLAMA_MODEL || DEFAULT_MODEL,
+  baseUrl = OLLAMA_URL,
+  model = OLLAMA_MODEL,
   run = docker,
   report = value => writeReport('deployment', value),
 } = {}) {
@@ -79,7 +79,8 @@ export async function deploy({
       image,
     ]);
     verify(candidate, commit);
-  } catch {
+  } catch (error) {
+    console.error(error.stderr?.trim() || error.message);
     await report({...metadata, status: 'candidate_failed'});
     throw new Error('Imagem candidata reprovada; aplicação atual preservada.');
   } finally {
@@ -110,7 +111,8 @@ export async function deploy({
     verify(run([...compose, 'ps', '-q', 'app']), commit);
     await report({...metadata, status: 'deployed'});
     console.log('Implantação concluída.');
-  } catch {
+  } catch (error) {
+    console.error(error.stderr?.trim() || error.message);
     if (previousImage) {
       console.log('Falha na implantação; restaurando a imagem anterior.');
       try {
