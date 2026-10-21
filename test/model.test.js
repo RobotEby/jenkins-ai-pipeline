@@ -28,14 +28,14 @@ test('preparação aguarda Ollama e baixa modelo ausente', async t => {
     } else {
       assert.equal(request.url, '/api/pull');
       pull = await body(request);
-      reply(response, {status: 'success'});
+      response.end('{"status":"pulling manifest"}\n{"status":"success"}\n');
     }
   });
   assert.equal(
     (await prepareModel({baseUrl, model: 'test:1b', delayMs: 1})).downloaded,
     true,
   );
-  assert.deepEqual(pull, {model: 'test:1b', stream: false});
+  assert.deepEqual(pull, {model: 'test:1b'});
 });
 
 test('preparação informa indisponibilidade e download reprovado', async t => {
@@ -74,5 +74,30 @@ test('smoke exige commit correto e inferência funcional', async t => {
   await assert.rejects(
     smoke({baseUrl, model: 'test', commit: 'abc', attempts: 1}),
     /modelo falhou/,
+  );
+});
+
+test('smoke usa o mesmo modelo padrão do servidor', async t => {
+  const upstream = await serve(t, (_request, response) =>
+    reply(response, {done: true, message: {content: 'OK'}}),
+  );
+  const baseUrl = await serve(
+    t,
+    createServer({baseUrl: upstream, commit: 'abc'}),
+  );
+  await smoke({baseUrl, commit: 'abc', attempts: 1});
+});
+
+test('smoke informa status e erro da API quando a inferência falha', async t => {
+  const upstream = await serve(t, (_request, response) =>
+    reply(response, {error: 'model not found'}, 404),
+  );
+  const baseUrl = await serve(
+    t,
+    createServer({baseUrl: upstream, model: 'test', commit: 'abc'}),
+  );
+  await assert.rejects(
+    smoke({baseUrl, model: 'test', commit: 'abc', attempts: 1}),
+    /HTTP 503: Modelo não encontrado/,
   );
 });
