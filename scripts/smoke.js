@@ -1,9 +1,10 @@
 import {setTimeout as sleep} from 'node:timers/promises';
+import {OLLAMA_MODEL} from '../src/ollama.js';
 
 export async function smoke({
   baseUrl = 'http://127.0.0.1:3000',
   commit = process.env.EXPECTED_COMMIT || process.env.APP_COMMIT,
-  model = process.env.OLLAMA_MODEL,
+  model = OLLAMA_MODEL,
   attempts = 30,
   delayMs = 1000,
   timeoutMs = 120_000,
@@ -19,8 +20,8 @@ export async function smoke({
         healthy = true;
         break;
       }
-    } catch {
-      /* Waiting for the HTTP process to start. */
+    } catch (error) {
+      console.error(`Verificação de saúde falhou. ${error.message}`);
     }
     if (attempt + 1 < attempts) await sleep(delayMs);
   }
@@ -41,7 +42,9 @@ export async function smoke({
     !body.reply.trim() ||
     body.model !== model
   ) {
-    throw new Error('A chamada real ao modelo falhou.');
+    throw new Error(
+      `A chamada real ao modelo falhou (HTTP ${response.status}: ${body.error ?? body.model}).`,
+    );
   }
 }
 
@@ -49,8 +52,8 @@ if (import.meta.main) {
   try {
     await smoke();
     console.log('Health check e inferência concluídos.');
-  } catch {
-    console.error('Verificação da API falhou.');
+  } catch (error) {
+    console.error(`Verificação da API falhou. ${error.message}`);
     process.exitCode = 1;
   }
 }
