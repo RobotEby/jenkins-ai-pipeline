@@ -37,6 +37,25 @@ export function notificationPayload({
   };
 }
 
+export function validateWebhookUrl(value) {
+  if (!value)
+    throw new Error('Credencial discord-webhook-url não configurada.');
+  const url = new URL(value);
+  if (
+    url.protocol !== 'https:' ||
+    ![
+      'discord.com',
+      'discordapp.com',
+      'canary.discord.com',
+      'ptb.discord.com',
+    ].includes(url.hostname) ||
+    !/^\/api(?:\/v\d+)?\/webhooks\/\d+\/[^/]+$/.test(url.pathname)
+  ) {
+    throw new Error('Configure uma URL HTTPS de webhook do Discord válida.');
+  }
+  return value;
+}
+
 export async function sendNotification(
   webhookUrl,
   payload,
@@ -74,8 +93,10 @@ export async function sendNotification(
         const body = await response.json();
         if (Number.isFinite(body.retry_after))
           waitMs = Math.ceil(body.retry_after * 1000);
-      } catch {
-        /* A response without `retry_after` uses the default interval. */
+      } catch (error) {
+        console.error(
+          `Erro ao processar a resposta do Discord. ${error.message}`,
+        );
       }
     } else {
       await response.body?.cancel();
@@ -90,22 +111,7 @@ export async function sendNotification(
 
 if (import.meta.main) {
   try {
-    const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-    if (!webhookUrl)
-      throw new Error('Credencial discord-webhook-url não configurada.');
-    const url = new URL(webhookUrl);
-    if (
-      url.protocol !== 'https:' ||
-      ![
-        'discord.com',
-        'discordapp.com',
-        'canary.discord.com',
-        'ptb.discord.com',
-      ].includes(url.hostname) ||
-      !/^\/api(?:\/v\d+)?\/webhooks\/\d+\/[^/]+$/.test(url.pathname)
-    ) {
-      throw new Error('Configure uma URL HTTPS de webhook do Discord válida.');
-    }
+    const url = validateWebhookUrl(process.env.DISCORD_WEBHOOK_URL);
     const [tests, review, deployment] = await Promise.all(
       ['tests', 'review', 'deployment'].map(readReport),
     );
@@ -118,7 +124,7 @@ if (import.meta.main) {
       review,
       deployment,
     });
-    await sendNotification(webhookUrl, payload);
+    await sendNotification(url, payload);
     await writeReport('notification', {status: 'sent'});
     console.log('Relatório enviado ao Discord.');
   } catch {
