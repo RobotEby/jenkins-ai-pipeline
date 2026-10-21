@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {notificationPayload, sendNotification} from '../scripts/notify.js';
+import {
+  notificationPayload,
+  sendNotification,
+  validateWebhookUrl,
+} from '../scripts/notify.js';
 import {serve, body, reply} from './helpers.js';
 
 test('mensagem é limitada, inclui resultados e desabilita menções', () => {
@@ -72,4 +76,25 @@ test('limita tentativas e timeout sem revelar credenciais', async t => {
     ),
     /tentativas limitadas/,
   );
+});
+
+test('aceita apenas URLs HTTPS de webhook do Discord', () => {
+  for (const value of [
+    'https://discord.com/api/webhooks/123/token',
+    'https://ptb.discord.com/api/v10/webhooks/123/token',
+  ]) {
+    assert.equal(validateWebhookUrl(value), value);
+  }
+  for (const value of [
+    undefined,
+    '',
+    'not a url',
+    'http://discord.com/api/webhooks/123/token',
+    'https://discord.com.evil.example/api/webhooks/123/token',
+    'https://evil.example/api/webhooks/123/token',
+    'https://discord.com/api/webhooks/abc/token',
+    'https://discord.com/api/webhooks/123/token/extra',
+  ]) {
+    assert.throws(() => validateWebhookUrl(value), value);
+  }
 });

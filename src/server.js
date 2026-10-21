@@ -1,5 +1,5 @@
 import http from 'node:http';
-import {chat, DEFAULT_MODEL, ModelError} from './ollama.js';
+import {chat, ModelError, OLLAMA_MODEL, OLLAMA_URL} from './ollama.js';
 
 const MAX_BODY = 16 * 1024;
 
@@ -40,8 +40,8 @@ function json(response, status, body) {
 }
 
 export function createServer({
-  baseUrl = process.env.OLLAMA_URL,
-  model = process.env.OLLAMA_MODEL || DEFAULT_MODEL,
+  baseUrl = OLLAMA_URL,
+  model = OLLAMA_MODEL,
   commit = process.env.APP_COMMIT || 'development',
   timeoutMs = 120_000,
 } = {}) {

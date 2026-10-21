@@ -186,7 +186,7 @@ Discord reports the build status at notification time; Jenkins shows the final r
 
 **Jenkins cannot access Docker.** Compare the socket's group ID with `DOCKER_GID`, then recreate Jenkins with `docker compose up -d jenkins`. Check access from the container with `docker compose exec jenkins docker version`. Avoid making the socket writable by every user.
 
-**Health succeeds but chat or deployment fails.** Check Ollama logs and the model list, confirm `OLLAMA_MODEL`, and distinguish a missing model from a timeout. Review and user requests share the same inference capacity. `/health` cannot diagnose that dependency.
+**Health succeeds but chat or deployment fails.** Check Ollama logs and the model list, confirm `OLLAMA_MODEL`, and distinguish a missing model from a timeout. The Jenkins console shows the cause of a failed check, including the API's HTTP status and error message (`Modelo não encontrado.` for a missing model, `Tempo limite do modelo excedido.` for a timeout). Review and user requests share the same inference capacity. `/health` cannot diagnose that dependency.
 
 **Build is unstable after deployment.** Inspect model, review, and notification reports and the Jenkins console. Invalid review output or missing Discord credentials can explain this result without requiring recovery. **No notification** can also mean a network failure, rejected webhook, rate limit, or interrupted post-processing; the full webhook URL should remain in Jenkins credentials.
 

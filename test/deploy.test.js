@@ -7,6 +7,7 @@ function scenario({
   failCandidate = false,
   failDeploy = false,
   failRollback = false,
+  appEnv = ['APP_COMMIT=old-commit'],
 } = {}) {
   const calls = [];
   const reports = [];
@@ -14,9 +15,7 @@ function scenario({
   const run = (args, env) => {
     calls.push({args, env});
     if (args[0] === 'inspect')
-      return JSON.stringify([
-        {Image: 'sha256:old', Config: {Env: ['APP_COMMIT=old-commit']}},
-      ]);
+      return JSON.stringify([{Image: 'sha256:old', Config: {Env: appEnv}}]);
     if (args.includes('ps'))
       return deployed ? 'app-new' : previous ? 'app-old' : '';
     if (args.includes('up')) {
@@ -100,4 +99,13 @@ test('falha da recuperação exige intervenção e primeira implantação remove
       ({args}) => args.includes('--stop') && args.includes('--force'),
     ),
   );
+});
+
+test('sem commit da aplicação atual, não inicia implantação', async () => {
+  const s = scenario({appEnv: []});
+  await assert.rejects(deploy(s.options), /commit anterior/);
+  assert.ok(
+    !s.calls.some(({args}) => args[0] === 'run' || args.includes('up')),
+  );
+  assert.equal(s.reports.length, 0);
 });
