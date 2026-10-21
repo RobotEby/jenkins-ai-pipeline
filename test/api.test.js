@@ -85,6 +85,21 @@ test('retorna 503 quando Ollama não está disponível', async t => {
   assert.equal((await post(url, {message: 'oi'})).status, 503);
 });
 
+test('modelo ausente no Ollama vira 503 com mensagem própria', async t => {
+  let status = 404;
+  const upstream = await serve(t, (_request, response) =>
+    reply(response, {error: 'model not found'}, status),
+  );
+  const url = await serve(t, createServer({baseUrl: upstream}));
+  let response = await post(url, {message: 'oi'});
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), {error: 'Modelo não encontrado.'});
+  status = 500;
+  response = await post(url, {message: 'oi'});
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), {error: 'Modelo indisponível.'});
+});
+
 test('retorna 504 no timeout de inferência', async t => {
   const upstream = await serve(t, () => {});
   const url = await serve(t, createServer({baseUrl: upstream, timeoutMs: 30}));
