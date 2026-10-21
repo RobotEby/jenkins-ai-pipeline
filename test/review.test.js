@@ -108,24 +108,26 @@ test('arquivo sem espaço para código não é listado como revisado', t => {
 
 test('validação rejeita formatos errados e descarta sugestões inválidas', () => {
   for (const value of [null, {}, {summary: '', findings: []}]) {
-    assert.throws(() => validateReview(value, ['app.js']));
+    assert.throws(() => validateReview(value, {'app.js': ''}));
   }
+  const evidence = 'const total = 1;';
   const valid = {
     file: 'app.js',
     severity: 'media',
     suggestion: 'x'.repeat(500),
+    evidence,
   };
   assert.deepEqual(
     validateReview(
       {
         summary: 'y'.repeat(400),
         findings: [
-          {file: 'invented.js', severity: 'alta', suggestion: 'fix'},
-          {file: 'app.js', severity: 'unknown', suggestion: 'fix'},
+          {file: 'invented.js', severity: 'alta', suggestion: 'fix', evidence},
+          {file: 'app.js', severity: 'unknown', suggestion: 'fix', evidence},
           valid,
         ],
       },
-      ['app.js'],
+      {'app.js': `\n### app.js\n${evidence}\n`},
     ),
     {
       summary: 'y'.repeat(300),
@@ -142,6 +144,9 @@ test('revisão usa saída estruturada e trata resposta inválida como indisponí
   const baseUrl = await serve(t, async (request, response) => {
     const input = await body(request);
     assert.equal(input.format.type, 'object');
+    assert.ok(
+      input.format.properties.findings.items.required.includes('evidence'),
+    );
     assert.equal(input.options.temperature, 0);
     reply(response, {done: true, message: {content}});
   });
@@ -172,13 +177,56 @@ test('relatório Markdown informa o limite real da entrada truncada', () => {
 });
 
 test('validação remove sugestões repetidas', () => {
-  const finding = {file: 'app.js', severity: 'media', suggestion: 'Trate X.'};
+  const finding = {
+    file: 'app.js',
+    severity: 'media',
+    suggestion: 'Trate X.',
+    evidence: 'run(task);',
+  };
   const other = {...finding, suggestion: 'Trate Y.'};
   assert.deepEqual(
     validateReview(
       {summary: 'Resumo', findings: [finding, finding, other, finding]},
-      ['app.js'],
+      {'app.js': 'run(task);'},
     ).findings,
     [finding, other],
+  );
+});
+
+test('validação descarta sugestões sem trecho literal do próprio arquivo', () => {
+  const sources = {
+    'app.js': '\n### app.js\n+  if (user)   {\n+    save(user);\n',
+    'deploy.js': "\n### deploy.js\nconsole.log('Falha na implantação');\n",
+  };
+  const base = {file: 'app.js', severity: 'alta', suggestion: 'Corrija.'};
+  const kept = {...base, evidence: '  if (user) {'};
+  assert.deepEqual(
+    validateReview(
+      {
+        summary: 'Resumo',
+        findings: [
+          {...base, evidence: 'deployOllama();'},
+          {...base, evidence: "console.log('Falha na implantação');"},
+          {...base, evidence: '}'},
+          {...base},
+          kept,
+        ],
+      },
+      sources,
+    ).findings,
+    [kept],
+  );
+  assert.deepEqual(
+    validateReview(
+      {
+        summary: 'Falha na implantação do serviço Ollama.',
+        findings: [{...base, evidence: 'ollama.down();'}],
+      },
+      sources,
+    ),
+    {
+      summary: 'Sugestões descartadas: nenhuma corresponde ao código enviado.',
+      findings: [],
+    },
   );
 });
