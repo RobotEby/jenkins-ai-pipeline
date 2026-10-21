@@ -22,7 +22,7 @@ A entrada é limitada a 12.000 caracteres de string JavaScript, incluindo os ró
 
 ## Resultados da revisão
 
-O script solicita JSON estruturado e valida um resumo não vazio, até cinco sugestões, caminhos de arquivos enviados e gravidades `baixa`, `media` ou `alta`. O resumo e cada sugestão têm limite de 1.000 caracteres. Respostas válidas resultam em `completed`; respostas inválidas ou indisponíveis, em `unavailable`.
+O script solicita JSON estruturado e valida um resumo não vazio, até cinco sugestões, caminhos de arquivos enviados e gravidades `baixa`, `media` ou `alta`. O resumo e cada sugestão são cortados em 300 caracteres para caber no limite de 1.200 tokens; sugestões com arquivo ou gravidade desconhecidos são descartadas. Respostas válidas resultam em `completed`; respostas inválidas ou indisponíveis, em `unavailable`.
 
 O prompt pede português, e os relatórios gerados usam rótulos em português. Os resultados são salvos em `reports/review.json` e `reports/review.md`. Quando a coleta de código termina com sucesso, o JSON também registra modelo, arquivos selecionados, modo de revisão, commit base e truncamento. Esses relatórios fazem parte dos [artefatos do build](operations.md#artefatos-do-build).
 

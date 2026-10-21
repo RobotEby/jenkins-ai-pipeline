@@ -22,7 +22,7 @@ Input is capped at 12,000 JavaScript string characters, including file labels. T
 
 ## Review results
 
-The script requests structured JSON and validates a nonempty summary, up to five findings, submitted file paths, and severities `baixa`, `media`, or `alta`. Summaries and individual suggestions are limited to 1,000 characters. Valid responses produce `completed`; invalid or unavailable responses produce `unavailable`.
+The script requests structured JSON and validates a nonempty summary, up to five findings, submitted file paths, and severities `baixa`, `media`, or `alta`. Summaries and individual suggestions are cut to 300 characters to fit the 1,200-token budget; findings with an unknown file or severity are dropped. Valid responses produce `completed`; invalid or unavailable responses produce `unavailable`.
 
 The prompt requests Portuguese, and generated reports use Portuguese labels. Results are saved as `reports/review.json` and `reports/review.md`. When code collection succeeds, the JSON also records the model, selected files, review mode, base commit, and truncation. These reports appear among the [build artifacts](operations.md#build-artifacts).
 

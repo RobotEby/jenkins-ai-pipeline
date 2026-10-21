@@ -43,7 +43,7 @@ Nesta configuração, os builds executam no nó integrado. A esteira usa `agent 
 
 Antes de configurar o job, confira se a branch remota contém `Jenkinsfile`, aplicação, testes, scripts e configuração dos contêineres. O Jenkins busca o código no Git; arquivos locais sem commit não ficam disponíveis para ele.
 
-1. Crie um item do tipo **Pipeline**, por exemplo `jenkins-ai-pipeline`.
+1. Crie um item do tipo **Pipeline**, por exemplo ` `.
 2. Selecione **Pipeline script from SCM** e depois **Git**.
 3. Informe `https://github.com/RobotEby/jenkins-ai-pipeline.git` ou a URL do seu repositório com esses arquivos.
 4. Defina **Branch Specifier** como `*/main` e **Script Path** como `Jenkinsfile`.

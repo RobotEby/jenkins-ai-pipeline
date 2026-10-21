@@ -186,7 +186,7 @@ O Discord informa o estado do build no momento da notificação; o Jenkins mostr
 
 **O Jenkins não consegue acessar o Docker.** Compare o grupo do socket com `DOCKER_GID` e recrie o Jenkins com `docker compose up -d jenkins`. Verifique o acesso pelo contêiner com `docker compose exec jenkins docker version`. Evite liberar escrita no socket para todos os usuários.
 
-**Health funciona, mas chat ou implantação falha.** Consulte os logs do Ollama e a lista de modelos, confira `OLLAMA_MODEL` e diferencie um modelo ausente de um timeout. Revisão e requisições dos usuários compartilham a capacidade de inferência. `/health` não diagnostica essa dependência.
+**Health funciona, mas chat ou implantação falha.** Consulte os logs do Ollama e a lista de modelos, confira `OLLAMA_MODEL` e diferencie um modelo ausente de um timeout. O console do Jenkins mostra a causa da verificação reprovada, incluindo o status HTTP e a mensagem de erro da API (`Modelo não encontrado.` para modelo ausente, `Tempo limite do modelo excedido.` para timeout). Revisão e requisições dos usuários compartilham a capacidade de inferência. `/health` não diagnostica essa dependência.
 
 **O build ficou instável após implantar.** Consulte os relatórios de modelo, revisão e notificação e o console do Jenkins. Uma resposta de revisão inválida ou a falta da credencial Discord pode explicar esse resultado sem exigir recuperação. **A ausência de notificação** também pode decorrer de falha de rede, rejeição do webhook, limitação de requisições ou interrupção do pós-processamento; a URL completa do webhook deve permanecer nas credenciais do Jenkins.
 
